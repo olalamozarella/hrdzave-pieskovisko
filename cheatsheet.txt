@@ -1,0 +1,172 @@
+/* 
+### RUST PRINCIPLES
+    Rust compiler tries to protect us from common C++ problems:
+    - dangling pointers (having a pointer/reference to destructed object) => ensured by single owner rule + lifetimes
+    - segmentation faults (accessing unavailable memory) => extensive compile-time checks
+    - data races (data being modified while it is being read) => protected by the borrow checker (one mut ref)
+    - no edge-cases / invalid states unrepresentable (program behaving incorrectly with a specific data) => always need to cover all possible values in match()
+    - thread-safety (accessing / modifying data from multiple threads) => only types with Send trait can be used between threads
+    - inheritance (child class inherits functionality from parent class) => implemented using structs & traits
+    - polymorphism (able to store parent and child class instances in a same vector) => main class is struct, parent functions are enum, 'match' handles the dynamic types
+    - metaprogramming (be able to generate the repetitive code) => using macros (macros are 'hygienic' == they do not affect variables outside the macro implementation)
+    - packaging (importing libraries or publishing code as package) => using cargo.io package manager
+    - overriding rust compiler => can be done using 'unsafe' block of code, this way we have access to everything (like in C), but we can clearly see which code is suspicious
+
+### OWNERSHIP ###
+    Compiler has a few rules to ensure memory safety of all variables:
+    - every variable has an owner
+    - there can be only single owner at a time (the original owner cannot access variable after it has been moved)
+    - when the owner goes out of the scope, value will be deallocated
+
+### BORROWING
+    Compiler has a few rules to ensure memory safety of references:
+    - At any given time, you can have either one mutable reference, or any number of immutable references
+    - References must always be valid (not null, always pointing to valid memory)
+    Reference is removed if it goes out of scope, or if we call std::mem::drop.
+
+### LIFETIMES ###
+    Used as a protection against dangling pointers, to ensure that the lifetime of reference is always longer than the lifetime of the original value.
+    We can specify relationships between lifetimes of the variables:
+    - on structs (to guarantee that a member reference variable lives longer than struct).
+    - on functions (to guarantee that returned reference lives longer/as long as parameters).
+
+    'static lifetime => exists for the whole duration of the runtime (example: string literals)
+
+### STRING TYPES ###
+    String
+    - heap-allocated, growable, utf-8 encoded, no null terminator
+    - owned datatype (if it goes out of scope, memory is released)
+    - internally contains pointer, length, capacity, data
+    - used for creating/modifying string data at runtime
+    - basically a Vec<u8>, that is guaranteed to contain valid utf-8
+
+    &str (string slice)
+    - stored in heap or .data section of the binary (string literals), utf-8, no null terminator
+    - borrowed type (doesn't own the data, just have access to the data)
+    - internally contains pointer and length (no capacity, as it cannot be grown)
+    - used for reading/analyzing existing string data (printing literals, substrings of String)
+
+    Box<str> (boxed string)
+    - heap-allocated, non-growable, owned
+    - used for APIs that need to return a immutable, but owned string
+    - can be used for optimizing String (removes capacity)
+
+    Rc<str>
+    - immutable, data is stored in the memory once, but can be accessed from multiple places (Rc::clone)
+    - used for sharing string slices in multiple places of a program (in case of long strings that are expensive to clone)
+
+    Arc<str>
+    - same as Rc<str>, but thread-safe
+
+    Vec<u8>
+    - byte vector, mutable
+    - used with binary data, or when using non-utf8 encoding
+
+    &[u8]
+    - binary string slice, immutable
+    - used with binary data, or when using non-utf8 encoding
+
+    Cow<'a, str> - copy on write
+    - behaves like a string slice, but is writable - in case of writing, it overwrites the original memory
+    - used when function usually doesn't modify the string, but sometimes does, and we don't want to copy data in such case
+
+    OsString - for cross-platform filenames that don't use utf8
+    Path - immutable string slice for cross-platform file paths that don't use utf8
+    PathBuf - mutable+owned String for cross-platform file paths that don't use utf8
+
+    CStr, CString - safe way to handle c-compatible strings (null-terminated)
+
+### STRING LITERALS ###
+    String literals are usually defined as static string slices: &'static str.
+    
+    Normal string literals
+    - special characters need to be backslashed
+    - example: let text = "He said: \"goodbye\"";
+
+    Raw string literal
+    - allow to write special characters without backslashing
+    - example: let text = r#"He said: "goodbye""#;
+
+    Byte string literals
+    - creates a slice of bytes &[u8; length]
+    - used if API needs bytearray
+    - example: let http_ok: &[u8;17] = b"HTTP/1.1 200 OK\r\n";
+
+    Combined raw+byte string literals
+    - creates a slice of bytes without need of backslashing
+    - example: let png_signature = br#"\x89PNG\r\n\x1a\n"#;
+
+### CONTAINERS ###
+    Option<T> - enum that has two values: None or Some<T>
+    - now we don't need nullptr (and potential segfaults)
+    - if we know that we always have some value, we will use the T directly
+    - if we know that nullptr/empty is possible, we will use Option<T>
+    - .unwrap() - panics if value is None, does nothing if value is Some<T>
+    - .unwrap_or(default_value) - if option is Some<T>, returns T; if option is None, returns default_value
+    - .ok_or(my_error) - converts Option<T> to Result<T,my_error> (Ok<T> if option is Some<T>, Err<my_error> if option is None)
+    - '?' operator - returns None if preceding statement returns None; does nothing if the preceding statement ended with Some<T>
+    
+    Result<T,E> - enum that has two values: Ok<T> or Err<E>
+    - for easy error propagation without much boilerplate code
+    - .unwrap() - panics if there is an error (good for prototyping, not to be used in production code)
+    - .expect(err_message) - panics if there is an error with a custom error message (good for prototyping, not to be used in production code)
+    - .unwrap_or(default_value) - if result is Ok<T>, returns T; if result is Err<E>, returns default_value
+    - .ok() - converts Result<T,E> to Option<T> (Some<T> if result is Ok, None if result is Err + err is discarded)
+    - '?' operator - returns Err<E> if preceding statement ended with Err<E>; does nothing if the preceding statement ended with Ok<T>
+    - .map_err(closure + error_type) - converts error types to different error types
+
+    HashSet<>
+    vec
+
+### SMART POINTERS ###
+    There are multiple smart pointer types, all are always stored on heap.
+    
+    Box<T> - reference wrapper on heap
+    - use Box when you cannot use stack for your variable (variable size is not known at compile time); or with recursive datatypes (linked list)
+
+    Rc<T> - reference counter, for sharing same memory on multiple places
+    - Rc::clone - creates a copy of the reference and increments the counter
+    - Rc::strong_count - shows the current number of references
+
+    Arc<T> - atomic reference counter, basically Rc with thread-safety
+
+    Cell<T> - overrides the borrow checker without a need for unsafe()
+    - allows copying (.get) and mutating variable (.set)
+    - can be used only on Copy traits, therefore mainly useful for primitives
+
+    RefCell<T> - basically a borrow checker at runtime
+    - .borrow() - gets an immutable ref
+    - .borrow_mut() - gets a mutable ref, panics if there are any existing immutable refs (same rule as with borrow checker - allows multiple immutable refs OR one mutable ref)
+    - .try_borrow_mut() - same as borrow_mut, but returns Result (Err instead of panic if there are any existing immutable refs)
+
+    Mutex<T> - mutex that protects data
+    - lock() - get mutable reference
+
+    RwLock<T> - enhanced mutex that differentiates read refs (many allowed at the same time) and write refs (one allowed)
+    - read() - get immutable reference, allows multiple at the same time, blocks if there is already a write ref
+    - write() - get mutable reference, blocks until all other references are dead
+
+### TRAITS
+    Equivalent to interface.
+    Popular traits:
+        trait Clone - enables .clone()
+        trait Copy - performs clone() implicitly
+        trait Debug - enables printing
+        trait Send - enables sending between threads
+
+### MACROS ###
+    println!(message, arg1, arg2, ...)
+    dbg!(object) - debug print of an object/struct
+    set!(data) - equivalent to HashSet::from(data)
+    macro_rules! my_macro {} - defines custom macro
+
+### CREATING A NEW PROJECT in vscode ###
+    cargo init hi_mum
+    cargo run hi_mum
+    code hi_mum
+    install CodeLLDB
+    F5 (to run debug) => fails, vscode will generate launch.json, F5 again will run debug
+    in case of windows error: linker `link.exe` not found:
+        rustup toolchain install stable-x86_64-pc-windows-gnu
+        rustup default stable-x86_64-pc-windows-gnu
+*/
