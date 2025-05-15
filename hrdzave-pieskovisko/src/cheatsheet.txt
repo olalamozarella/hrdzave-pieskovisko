@@ -173,4 +173,47 @@
     in case of windows error: linker `link.exe` not found:
         rustup toolchain install stable-x86_64-pc-windows-gnu
         rustup default stable-x86_64-pc-windows-gnu
+
+### VSCODE INTEGRATION (launch.json, tasks.json)
+    Vscode/cargo does usually expect one rust project per folder. It might be a bit tricky to convince them to use "one project per subfolder".
+    This is an example of tasks/launch.json that was used on my windows machine:
+
+    tasks.json:
+    {
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cargo build - gelnica-chopper",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/gelnica-chopper"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$rustc"]
+        }
+    ]
+    }
+
+    launch.json:
+    {
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug gelnica-chopper",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/gelnica-chopper/target/debug/gelnica-chopper",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo build - gelnica-chopper"
+        }
+    ]
+    }
 */
