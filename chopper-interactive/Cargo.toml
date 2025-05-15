@@ -1,0 +1,8 @@
+[package]
+name = "chopper-interactive"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+csv = "1.1"
+macroquad = "0.4"

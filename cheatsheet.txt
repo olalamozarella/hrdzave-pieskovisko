@@ -1,4 +1,4 @@
-/* 
+/*
 ### RUST PRINCIPLES
     Rust compiler tries to protect us from common C++ problems:
     - dangling pointers (having a pointer/reference to destructed object) => ensured by single owner rule + lifetimes
@@ -6,11 +6,15 @@
     - data races (data being modified while it is being read) => protected by the borrow checker (one mut ref)
     - no edge-cases / invalid states unrepresentable (program behaving incorrectly with a specific data) => always need to cover all possible values in match()
     - thread-safety (accessing / modifying data from multiple threads) => only types with Send trait can be used between threads
+    - unhandled values in switch-case => compiler checks that all possible values are covered
+
+    A lot of features are similar to C++, but implemented differently:
     - inheritance (child class inherits functionality from parent class) => implemented using structs & traits
     - polymorphism (able to store parent and child class instances in a same vector) => main class is struct, parent functions are enum, 'match' handles the dynamic types
     - metaprogramming (be able to generate the repetitive code) => using macros (macros are 'hygienic' == they do not affect variables outside the macro implementation)
     - packaging (importing libraries or publishing code as package) => using cargo.io package manager
     - overriding rust compiler => can be done using 'unsafe' block of code, this way we have access to everything (like in C), but we can clearly see which code is suspicious
+    - runtime error => panic
 
 ### OWNERSHIP ###
     Compiler has a few rules to ensure memory safety of all variables:
@@ -78,7 +82,7 @@
 
 ### STRING LITERALS ###
     String literals are usually defined as static string slices: &'static str.
-    
+
     Normal string literals
     - special characters need to be backslashed
     - example: let text = "He said: \"goodbye\"";
@@ -105,7 +109,7 @@
     - .unwrap_or(default_value) - if option is Some<T>, returns T; if option is None, returns default_value
     - .ok_or(my_error) - converts Option<T> to Result<T,my_error> (Ok<T> if option is Some<T>, Err<my_error> if option is None)
     - '?' operator - returns None if preceding statement returns None; does nothing if the preceding statement ended with Some<T>
-    
+
     Result<T,E> - enum that has two values: Ok<T> or Err<E>
     - for easy error propagation without much boilerplate code
     - .unwrap() - panics if there is an error (good for prototyping, not to be used in production code)
@@ -120,7 +124,7 @@
 
 ### SMART POINTERS ###
     There are multiple smart pointer types, all are always stored on heap.
-    
+
     Box<T> - reference wrapper on heap
     - use Box when you cannot use stack for your variable (variable size is not known at compile time); or with recursive datatypes (linked list)
 
